@@ -17,19 +17,27 @@ public:
         BitOnRole = Qt::UserRole + 3
     };
 
-    virtual int rowCount(const QModelIndex &parent) const { return m_rows * m_columns; }
+    virtual int rowCount(const QModelIndex &parent) const { return m_matrix.size(); }
     virtual QVariant data(const QModelIndex &index, int role) const;
     virtual bool setData(const QModelIndex &index, const QVariant &value, int role);
+    virtual bool insertRows(int row, int count, const QModelIndex &parent = QModelIndex());
     QHash<int, QByteArray> roleNames() const;
 
     Q_PROPERTY(int rows READ rows WRITE setRows NOTIFY rowsChanged)
     Q_PROPERTY(int columns READ columns WRITE setColumns NOTIFY columnsChanged)
     Q_INVOKABLE int rows() { return m_rows; }
     Q_INVOKABLE int columns() { return m_columns; }
+    Q_INVOKABLE int insertRow(int position, int count = 1);
+    Q_INVOKABLE int insertColumn(int position, int count = 1);
+    //Q_INVOKABLE int appendRow(int count = 1);
+    //Q_INVOKABLE int appendColumn(int count = 1);
+    Q_INVOKABLE void setDimensions(int rows, int columns);
     Q_INVOKABLE void setRows(int rows);
     Q_INVOKABLE void setColumns(int columns);
     Q_INVOKABLE void setBit(int row, int column, bool on = true);
     Q_INVOKABLE void setBit(QVector<QPair<int,int>> bit, bool on = true);
+    Q_INVOKABLE void setRow(int row, bool on = true);
+    Q_INVOKABLE void setColumn(int column, bool on = true);
     Q_INVOKABLE void init();
 
 signals:

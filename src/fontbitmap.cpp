@@ -48,30 +48,66 @@ bool FontBitmap::setData(const QModelIndex &index, const QVariant &value, int ro
     return false;
 }
 
-void FontBitmap::setRows(int rows) {
-    if (rows >= 0 && rows != m_rows) {
-        beginRemoveRows(QModelIndex(), 0, m_rows * m_columns);
+bool FontBitmap::insertRows(int row, int count, const QModelIndex &parent) {
+    beginInsertRows(parent, row, row + count-1);
+    m_matrix.resize(rowCount(parent) + count);
+    endInsertRows();
+    for (int i = rowCount(parent)-1; i >= row+count; --i) {
+        setData(index(i), data(index(i-count), BitOnRole), BitOnRole);
+        setData(index(i-count), false, BitOnRole);
+    }
+    return true;
+}
+
+int FontBitmap::insertRow(int position, int count) {
+    if (count > 0) {
+        insertRows(position * m_columns, count * m_columns);
+        m_rows += count;
+        emit rowsChanged(m_rows);
+    }
+    return m_rows;
+}
+
+int FontBitmap::insertColumn(int position, int count) {
+    if (count > 0) {
+        for (int i = m_rows-1; i >= 0; --i) {
+            insertRows(position + i * m_columns, count);
+        }
+        m_columns += count;
+        emit columnsChanged(m_columns);
+    }
+    return m_columns;
+}
+
+void FontBitmap::setDimensions(int rows, int columns) {
+    if (rows >= 0 && columns >= 0 && (rows != m_rows || columns != m_columns)) {
+        beginRemoveRows(QModelIndex(), 0, rowCount(QModelIndex()));
         m_matrix = QBitArray();
         endRemoveRows();
-        beginInsertRows(QModelIndex(), 0, rows * m_columns);
-        m_rows = rows;
-        m_matrix = QBitArray(m_rows * m_columns);
+        beginInsertRows(QModelIndex(), 0, rows * columns);
+        m_matrix = QBitArray(rows * columns);
+        if (rows != m_rows) {
+            m_rows = rows;
+            emit rowsChanged(m_rows);
+        }
+        if (columns != m_columns) {
+            m_columns = columns;
+            emit columnsChanged(m_columns);
+        }
         endInsertRows();
-        emit rowsChanged(m_rows);
     }
 }
 
+void FontBitmap::setRows(int rows) {
+    if (m_columns < 1)
+        m_columns = 1;
+    setDimensions(rows, m_columns);
+}
+
 void FontBitmap::setColumns(int columns) {
-    if (columns >= 0 && columns != m_columns) {
-        beginRemoveRows(QModelIndex(), 0, m_rows * m_columns);
-        m_matrix = QBitArray();
-        endRemoveRows();
-        beginInsertRows(QModelIndex(), 0, m_rows * columns);
-        m_columns = columns;
-        m_matrix = QBitArray(m_rows * m_columns);
-        endInsertRows();
-        emit columnsChanged(m_columns);
-    }
+    if (m_rows < 1)
+        m_rows = 1;
+    setDimensions(m_rows, columns);
 }
 
 void FontBitmap::setBit(int row, int column, bool on) {
@@ -83,31 +119,33 @@ void FontBitmap::setBit(int row, int column, bool on) {
 
 void FontBitmap::setBit(QVector<QPair<int,int>> bit, bool on) {
     for (int i = 0; i < bit.size(); ++i) {
-        setData(m_modelIndex(bit.at(i).first, bit.at(i).second), on, BitOnRole);
+        setBit(bit.at(i).first, bit.at(i).second, on);
+    }
+}
+
+void FontBitmap::setRow(int row, bool on) {
+    for (int i = 0; i < m_columns; ++i) {
+        setBit(row, i, on);
+    }
+}
+
+void FontBitmap::setColumn(int column, bool on) {
+    for (int i = 0; i < m_rows; ++i) {
+        setBit(i, column, on);
     }
 }
 
 void FontBitmap::init() {
-    QVector<QPair<int,int>> bits;
-    bits.append(QPair<int,int>(4,2));
-    bits.append(QPair<int,int>(3,3));
-    bits.append(QPair<int,int>(5,3));
-    bits.append(QPair<int,int>(2,4));
-    bits.append(QPair<int,int>(6,4));
-    bits.append(QPair<int,int>(2,5));
-    bits.append(QPair<int,int>(6,5));
-    bits.append(QPair<int,int>(2,6));
-    bits.append(QPair<int,int>(6,6));
-    bits.append(QPair<int,int>(2,7));
-    bits.append(QPair<int,int>(6,7));
-    bits.append(QPair<int,int>(2,8));
-    bits.append(QPair<int,int>(6,8));
-    bits.append(QPair<int,int>(3,9));
-    bits.append(QPair<int,int>(5,9));
-    bits.append(QPair<int,int>(4,10));
-    bits.append(QPair<int,int>(5,11));
-    bits.append(QPair<int,int>(3,11));
-    setBit(bits, true);
+    setColumn(0);
+    setColumn(2);
+    setColumn(4);
+    setColumn(6);
+    setColumn(8);
+    setColumn(10);
+    setColumn(12);
+    setColumn(14);
+    insertColumn(3);
+    insertRow(3);
 }
 
 int FontBitmap::m_matrixIndex(int row, int column) const {

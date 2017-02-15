@@ -54,8 +54,8 @@ Page {
                 anchors.centerIn: parent
                 dimmed: !bitOn
                 radius: 0.5
-                falloffRadius: 0.16
-                opacity: dimmed? 0.2: 1
+                falloffRadius: dimmed ? 0.1 : 0.2
+                //opacity: dimmed ? 0.4 : 1
                 color: appSettings.ledColor
             }
             onClicked: {
