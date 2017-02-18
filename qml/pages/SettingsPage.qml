@@ -4,7 +4,7 @@ import Sailfish.Silica 1.0
 Page {
     id: page
 
-    allowedOrientations: Orientation.All
+    allowedOrientations: Orientation.Landscape
 
     SilicaFlickable {
         anchors.fill: parent
@@ -18,40 +18,50 @@ Page {
                 title: qsTr("Settings")
             }
 
-            SectionHeader {
-                text: qsTr("Text")
-            }
-
             TextField {
-                width: parent.width
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
+                text: appSettings.tickerText
                 placeholderText: qsTr("Enter text to show on the ticker")
                 label: qsTr("LED ticker text")
                 inputMethodHints: Qt.ImhNoPredictiveText
                 validator: RegExpValidator { regExp: /[a-zA-Z0-9\s,.:!?()+\-*\/%=<>]+/ }
-                errorHighlight: !acceptableInput && text.length > 0
+                //errorHighlight: !acceptableInput && text.length > 0
                 EnterKey.enabled: acceptableInput
                 EnterKey.iconSource: "image://theme/icon-m-enter-accept"
                 EnterKey.onClicked: appSettings.setValue("tickerText", text)
             }
 
             SectionHeader {
-                text: qsTr("Color")
+                text: qsTr("Animation")
             }
 
-            Item {
+            Slider {
                 width: parent.width
+                minimumValue: 100
+                maximumValue: 2000
+                stepSize: 100
+                value: appSettings.tickerSpeed
+                valueText: value + " ms"
+                label: qsTr("Ticker speed")
+                onValueChanged: appSettings.setValue("tickerSpeed", value)
+            }
+
+            Row {
+                x: Theme.horizontalPageMargin
+                width: parent.width - 2 * Theme.horizontalPageMargin
                 height: colorButton.height
+                spacing: Theme.paddingMedium
 
                 GlassItem {
-                    anchors.right: colorButton.left
-                    anchors.verticalCenter: colorButton.verticalCenter
+                    width: height
+                    height: colorButton.height
                     radius: 0.5
                     falloffRadius: 0.16
                     color: appSettings.ledColor
                 }
                 Button {
                     id: colorButton
-                    anchors.horizontalCenter: parent.horizontalCenter
                     text: qsTr("Select color")
                     onClicked: {
                         var dialog = pageStack.push("Sailfish.Silica.ColorPickerDialog")
@@ -60,30 +70,11 @@ Page {
                         })
                     }
                 }
-                GlassItem {
-                    anchors.left: colorButton.right
-                    anchors.verticalCenter: colorButton.verticalCenter
-                    radius: 0.5
-                    falloffRadius: 0.16
-                    color: appSettings.ledColor
-                }
-            }
-
-            SectionHeader {
-                text: qsTr("Animation")
-            }
-
-            ComboBox {
-                label: qsTr("Tick speed")
-                currentIndex: 3
-
-                menu: ContextMenu {
-                    MenuItem { text: "100 ms" }
-                    MenuItem { text: "200 ms" }
-                    MenuItem { text: "500 ms" }
-                    MenuItem { text: "1000 ms" }
-                    MenuItem { text: "1200 ms" }
-                    MenuItem { text: "1500 ms" }
+                Button {
+                    id: resetColorButton
+                    text: qsTr("Set color to Ambiente")
+                    visible: appSettings.ledColor !== Theme.highlightColor
+                    onClicked: appSettings.setValue("ledColor", Theme.highlightColor)
                 }
             }
         }

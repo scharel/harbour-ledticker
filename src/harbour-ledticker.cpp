@@ -32,7 +32,7 @@
 #include <QtQuick>
 #endif
 
-#include "fontbitmap.h"
+#include "bitmapmodel.h"
 
 #include <sailfishapp.h>
 #include <QObject>
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     QScopedPointer<QGuiApplication> app(SailfishApp::application(argc, argv));
     QScopedPointer<QQuickView> view(SailfishApp::createView());
 
-    qmlRegisterType<FontBitmap>("harbour.ledticker", 1, 0, "FontBitmap");
+    qmlRegisterType<BitmapModel>("harbour.ledticker", 1, 0, "BitmapModel");
 
     view->setSource(SailfishApp::pathTo("qml/harbour-ledticker.qml"));
     view->show();

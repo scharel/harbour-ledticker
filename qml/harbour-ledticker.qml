@@ -8,8 +8,9 @@ ApplicationWindow
     ConfigurationGroup {
         id: appSettings
         path: "/apps/harbour-ledticker/settings"
-        property color ledColor: value("ledColor", Theme.primaryColor)
         property string tickerText: value("tickerText", "SailfishOS rules!")
+        property int tickerSpeed: value("tickerSpeed", 800)
+        property color ledColor: value("ledColor", Theme.highlightColor)
     }
 
     initialPage: Component { TickerPage { } }

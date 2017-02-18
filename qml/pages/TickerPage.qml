@@ -7,7 +7,7 @@ Page {
 
     allowedOrientations: Orientation.Landscape
 
-    property bool drawingMode: true
+    property bool drawingMode: false
 
     SilicaGridView {
         id: tickerGrid
@@ -38,7 +38,7 @@ Page {
             }
         }
 
-        model: FontBitmap {
+        model: BitmapModel {
             id: fontBitmap
             rows: 9
             columns: 16
@@ -55,14 +55,12 @@ Page {
                 dimmed: !bitOn
                 radius: 0.5
                 falloffRadius: dimmed ? 0.1 : 0.2
-                //opacity: dimmed ? 0.4 : 1
+                opacity: dimmed ? 0.4 : 1
                 color: appSettings.ledColor
             }
             onClicked: {
                 //glassItem.dimmed = !glassItem.dimmed
                 bitOn = !bitOn
-                var column = index % fontBitmap.columns
-                var row = parseInt(index / fontBitmap.columns)
                 console.log("Row " + row + " / " + "Col " + column + ": " + bitOn)
             }
         }

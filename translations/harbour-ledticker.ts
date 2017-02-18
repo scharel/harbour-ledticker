@@ -19,15 +19,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Color</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Animation</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Text</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -39,7 +31,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Tick speed</source>
+        <source>Ticker speed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set color to Ambiente</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

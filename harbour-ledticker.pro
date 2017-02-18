@@ -15,7 +15,7 @@ TARGET = harbour-ledticker
 CONFIG += sailfishapp
 
 SOURCES += src/harbour-ledticker.cpp \
-    src/fontbitmap.cpp
+    src/bitmapmodel.cpp
 
 OTHER_FILES += qml/harbour-ledticker.qml \
     qml/cover/CoverPage.qml \
@@ -43,4 +43,4 @@ DISTFILES += \
 
 HEADERS += \
     src/font8x8_basic.h \
-    src/fontbitmap.h
+    src/bitmapmodel.h
