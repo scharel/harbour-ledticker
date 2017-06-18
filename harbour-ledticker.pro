@@ -42,5 +42,7 @@ DISTFILES += \
     qml/pages/SettingsPage.qml
 
 HEADERS += \
-    src/font8x8_basic.h \
-    src/bitmapmodel.h
+    src/bitmapmodel.h \
+    src/font4x7.h \
+    src/font7x9.h \
+    src/font5x8.h

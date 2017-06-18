@@ -5,26 +5,31 @@ import harbour.ledticker 1.0
 Page {
     id: page
 
-    allowedOrientations: Orientation.Landscape
+    allowedOrientations: Orientation.LandscapeMask
 
     property bool drawingMode: false
 
-    SilicaGridView {
-        id: tickerGrid
+    SilicaFlickable {
+        id: flickable
         anchors.fill: parent
-        cellWidth: page.width / fontBitmap.columns
-        cellHeight: page.height / fontBitmap.rows
+        contentWidth: tickerGrid.width
+        contentHeight: height
 
         PullDownMenu {
             MenuItem {
                 text: qsTr("Enable drawing mode")
-                visible: false// !drawingModecolumns
+                visible: !drawingMode
                 onClicked: drawingMode = true
             }
             MenuItem {
                 text: qsTr("Cancel")
                 visible: drawingMode
                 onClicked: drawingMode = false
+            }
+            MenuItem {
+                text: qsTr("Add 8 columns")
+                visible: drawingMode
+                onClicked: console.log("Add 8 columns")
             }
             MenuItem {
                 text: qsTr("Apply drawing")
@@ -38,30 +43,38 @@ Page {
             }
         }
 
-        model: BitmapModel {
-            id: fontBitmap
-            rows: 9
-            columns: 16
-            Component.onCompleted: init()
-        }
-        delegate: BackgroundItem {
-            width: tickerGrid.cellWidth
-            height: tickerGrid.cellHeight
-            enabled: drawingMode
+        SilicaGridView {
+            id: tickerGrid
+            width: drawingMode? bitmap.virtualColumns * cellWidth : page.width
+            height: parent.height
+            cellWidth: page.width / bitmap.columns
+            cellHeight: page.height / bitmap.rows
 
-            GlassItem {
-                id: glassItem
-                anchors.centerIn: parent
-                dimmed: !bitOn
-                radius: 0.5
-                falloffRadius: dimmed ? 0.1 : 0.2
-                opacity: dimmed ? 0.4 : 1
-                color: appSettings.ledColor
+            model: BitmapModel {
+                id: bitmap
+                columns: 16
+                rows: 9
+                virtualColumns: 32
+                Component.onCompleted: init()   // DEBUG
             }
-            onClicked: {
-                //glassItem.dimmed = !glassItem.dimmed
-                bitOn = !bitOn
-                console.log("Row " + row + " / " + "Col " + column + ": " + bitOn)
+            delegate: BackgroundItem {
+                width: tickerGrid.cellWidth
+                height: tickerGrid.cellHeight
+                enabled: drawingMode
+
+                GlassItem {
+                    id: glassItem
+                    anchors.centerIn: parent
+                    dimmed: !on
+                    radius: 0.5
+                    falloffRadius: dimmed ? 0.1 : 0.2
+                    opacity: dimmed ? 0.4 : 1
+                    color: appSettings.ledColor
+                }
+                onClicked: {
+                    on = !on
+                    console.log("Column " + column + " / " + "Row " + row + ": " + on)
+                }
             }
         }
     }

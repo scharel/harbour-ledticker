@@ -42,10 +42,6 @@
 <context>
     <name>TickerPage</name>
     <message>
-        <source>Settings</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Enable drawing mode</source>
         <translation type="unfinished"></translation>
     </message>
@@ -55,6 +51,14 @@
     </message>
     <message>
         <source>Apply drawing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add 8 columns</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

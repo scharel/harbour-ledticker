@@ -1,44 +1,45 @@
 #include "bitmapmodel.h"
-#include "font8x8_basic.h"
+#include "font4x7.h"
+#include "font5x8.h"
+#include "font7x9.h"
 
 #include <QDebug>
 
-BitmapModel::BitmapModel(QObject *parent) : QAbstractListModel(parent)
-{
-    m_rows = 0;
-    m_columns = 0;
+BitmapModel::BitmapModel(QObject *parent) : QAbstractListModel(parent) {
+    clear()
 }
 
 BitmapModel::~BitmapModel() {
-    beginResetModel();
-    m_bitmap.clear();
-    m_rows = 0;
-    emit rowsChanged(m_rows);
-    m_columns = 0;
-    emit columnsChanged(m_columns);
-    endResetModel();
+    clear();
 }
 
 QHash<int, QByteArray> BitmapModel::roleNames() const {
     QHash<int, QByteArray> roles;
-    roles[RowRole] = "row";
+    roles[OnRole] = "on";
     roles[ColumnRole] = "column";
-    roles[BitOnRole] = "bitOn";
+    roles[RowRole] = "row";
     return roles;
+}
+
+int BitmapModel::rowCount(const QModelIndex &parent) const {
+    if (m_virtualVisible)
+        return m_virtualColumns * m_rows;
+    else
+        return m_columns * m_rows;
 }
 
 QVariant BitmapModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid()) {
         return QVariant();
     }
-    if (role == RowRole) {
-        return index.row() / m_columns;
+    if (role == OnRole) {
+        return QVariant(m_bitmap.testBit(m_bitmapIndex(index)));
     }
     if (role == ColumnRole) {
-        return index.row() % m_columns;
+        return m_indexColumn(index);
     }
-    if (role == BitOnRole) {
-        return QVariant(m_bitmap.testBit(index.row()));
+    if (role == RowRole) {
+        return m_indexRow(index);
     }
     return QVariant();
 }
@@ -47,165 +48,235 @@ bool BitmapModel::setData(const QModelIndex &index, const QVariant &value, int r
     if (!index.isValid()) {
         return false;
     }
+    if (role == OnRole) {
+        if (value == true && data(index, OnRole) != true) {
+            m_bitmap.setBit(m_bitmapIndex(index));
+            emit dataChanged(index, index, QVector<int>(Qt::DecorationRole, OnRole));
+        }
+        else if (value == false && data(index, OnRole) != false) {
+            m_bitmap.clearBit(m_bitmapIndex(index));
+            emit dataChanged(index, index, QVector<int>(Qt::DecorationRole, OnRole));
+        }
+    }
     if (role == RowRole || role == ColumnRole) {
         return false;
-    }
-    if (role == BitOnRole) {
-        m_bitmap.setBit(index.row(), value.toBool());
-        emit dataChanged(index, index, QVector<int>(1, BitOnRole));
-        return true;
     }
     return false;
 }
 
 bool BitmapModel::insertRows(int row, int count, const QModelIndex &parent) {
-    beginInsertRows(parent, row, row + count-1);
-    m_bitmap.resize(rowCount(parent) + count);
-    endInsertRows();
-    for (int i = rowCount(parent)-1; i >= row+count; --i) {
-        setData(index(i), data(index(i-count), BitOnRole), BitOnRole);
-        setData(index(i-count), false, BitOnRole);
+    if (count > 0) {
+        int oldSize = m_bitmap.size();
+        beginInsertRows(parent, row, row + count);
+        m_bitmap.resize(oldSize +  count);
+        for (int position = oldSize - 1; position >= row; position--)
+            m_bitmap[position + count] = m_bitmap[position];
+        // TODO test!
+        endInsertRows();
     }
+    else
+        return false;
     return true;
 }
 
-int BitmapModel::insertRow(int position, int count) {
-    if (count > 0) {
-        insertRows(position * m_columns, count * m_columns);
-        m_rows += count;
-        emit rowsChanged(m_rows);
-    }
-    return m_rows;
-}
-
-int BitmapModel::appendRow(int count) {
-    return insertRow(m_rows, count);
-}
-
-int BitmapModel::insertColumn(int position, int count) {
-    if (count > 0) {
-        for (int i = m_rows-1; i >= 0; --i) {
-            insertRows(position + i * m_columns, count);
-        }
-        m_columns += count;
-        emit columnsChanged(m_columns);
-    }
-    return m_columns;
-}
-
-int BitmapModel::appendColumn(int count) {
-    return insertColumn(m_columns, count);
-}
-
-void BitmapModel::setDimensions(int rows, int columns) {
-    if (rows >= 0 && columns >= 0 && (rows != m_rows || columns != m_columns)) {
-        beginRemoveRows(QModelIndex(), 0, rowCount(QModelIndex()));
-        m_bitmap = QBitArray();
-        endRemoveRows();
-        beginInsertRows(QModelIndex(), 0, rows * columns);
-        m_bitmap = QBitArray(rows * columns);
-        if (rows != m_rows) {
-            m_rows = rows;
-            emit rowsChanged(m_rows);
-        }
-        if (columns != m_columns) {
-            m_columns = columns;
-            emit columnsChanged(m_columns);
-        }
-        endInsertRows();
-    }
+void BitmapModel::setColumns(int columns) {
+    int rows = m_rows;
+    if (columns > 0 && rows <= 0)
+        rows = 1;
+    m_setDimensions(columns, rows, m_virtualColumns);
 }
 
 void BitmapModel::setRows(int rows) {
-    if (m_columns < 1)
-        m_columns = 1;
-    setDimensions(rows, m_columns);
+    int columns = m_columns;
+    if (rows > 0 && columns <= 0)
+        columns = 1;
+    m_setDimensions(columns, rows, m_virtualColumns);
 }
 
-void BitmapModel::setColumns(int columns) {
-    if (m_rows < 1)
-        m_rows = 1;
-    setDimensions(m_rows, columns);
+void BitmapModel::setVirtualColumns(int virtualColumns) {
+    int columns = m_columns;
+    int rows = m_rows;
+    if (virtualColumns > 0 && columns <= 0)
+        columns = 1;
+    if (virtualColumns > 0 && rows <= 0)
+        rows = 1;
+    m_setDimensions(columns, rows, virtualColumns);
 }
 
-void BitmapModel::setBit(int row, int column, bool on) {
-    if (row < 0 || column < 0 || row >= m_rows || column >= m_columns) {
-        return;
-    }
-    setData(m_modelIndex(row, column), on, BitOnRole);
-}
-
-void BitmapModel::setBit(QVector<QPair<int,int>> bit, bool on) {
-    for (int i = 0; i < bit.size(); ++i) {
-        setBit(bit.at(i).first, bit.at(i).second, on);
-    }
-}
-
-void BitmapModel::setRow(int row, bool on) {
-    for (int i = 0; i < m_columns; ++i) {
-        setBit(row, i, on);
+void BitmapModel::setVirtualVisible(bool visible) {
+    // FIXME insertRows()
+    if (m_virtualVisible != visible) {
+        m_virtualVisible = visible;
+        emit virtualVisibleChanged(m_virtualVisible);
+        emit columnsChanged(m_bitmap.width());
+        //emit dataChanged(m_modelIndex(0, 0), m_modelIndex(m_bitmap.width(), m_bitmap.height()), QVector<int>(Qt::DecorationRole, OnRole));
     }
 }
 
-void BitmapModel::setColumn(int column, bool on) {
-    for (int i = 0; i < m_rows; ++i) {
-        setBit(i, column, on);
+void BitmapModel::clear() {
+    beginResetModel();
+    setVirtualColumns(0);
+    setColumns(0);
+    setRows(0);
+    setVirtualVisible(false);
+    m_bitmap = QBitArray;
+    endResetModel();
+}
+
+void BitmapModel::drawBit(int column, int row, bool on) {
+    if ((on == true && data(m_modelIndex(column, row), OnRole) != true) || (on == false && data(m_modelIndex(column, row), OnRole) != false)) {
+        m_getPainter(on).drawPoint(column, row);
+        qDebug() << m_indexPoint(m_modelIndex(column, row)) << on << data(m_modelIndex(column, row), OnRole);
+        emit dataChanged(m_modelIndex(column, row), m_modelIndex(column, row), QVector<int>(Qt::DecorationRole, OnRole));
     }
 }
 
-bool BitmapModel::setChar8x8(int row, int column, QChar character, bool resize) {
-    qDebug() << "Letter" << character << "Code" << character.unicode();
-    if ((row + 8 < m_rows) && resize)
-        appendRow((row+8)-m_rows);
-    if ((column + 8 < m_columns) && resize)
-        appendColumn((column+8)-m_columns);
-    const char* charPattern = font8x8_basic[character.unicode()];
-    for (int r = 0; r < 8; ++r) {
-        char mask = 0x01;
-        for (int c = 0; c < 8; ++c) {
-            setBit(r+row, c+column, charPattern[r] & mask);
-            mask<<=1;
-        }
-    }
-    return false;
+void BitmapModel::drawColumn(int column, bool on) {
+    m_getPainter(on).drawLine(column, 0, column, rows() - 1);
+    emit dataChanged(m_modelIndex(column, 0), m_modelIndex(column, rows() - 1), QVector<int>(Qt::DecorationRole, OnRole));
 }
 
-bool BitmapModel::setString8x8(int row, int column, QString text, bool resize) {
-    for (int i = 0; i < text.length(); i++) {
-        qDebug() << text[i].unicode();
+void BitmapModel::drawRow(int row, bool on) {
+    m_getPainter(on).drawLine(0, row, columns() - 1, row);
+    emit dataChanged(m_modelIndex(0, row), m_modelIndex(columns() - 1, row), QVector<int>(Qt::DecorationRole, OnRole));
+}
+
+void BitmapModel::drawRect(int topleftcolumn, int topleftrow, int bottomrightcolumn, int bottomrightrow, bool on) {
+    m_getPainter(on).drawRect(topleftcolumn, topleftrow, bottomrightcolumn - topleftcolumn, bottomrightrow - topleftrow);
+    emit dataChanged(m_modelIndex(topleftcolumn, topleftrow), m_modelIndex(bottomrightcolumn, bottomrightrow), QVector<int>(Qt::DecorationRole, OnRole));
+}
+
+void BitmapModel::drawChar4x7(char letter, int column, int row, bool on) {
+    QImage letterImage(&font4x7[letter*7], 4, 7, 1, QImage::Format_Mono);
+    letterImage.setColor(0, m_offColor.rgba());
+    letterImage.setColor(1, m_onColor.rgba());
+    m_getPainter(on).drawImage(column, row, letterImage);
+    emit dataChanged(m_modelIndex(column, row), m_modelIndex(column + 3, row + 6), QVector<int>(Qt::DecorationRole, OnRole));
+}
+
+void BitmapModel::drawChar5x8(char letter, int column, int row, bool on) {
+    QImage letterImage(&font5x8[letter*8], 5, 8, 1, QImage::Format_Mono);
+    letterImage.setColor(0, m_offColor.rgba());
+    letterImage.setColor(1, m_onColor.rgba());
+    m_getPainter(on).drawImage(column, row, letterImage);
+    emit dataChanged(m_modelIndex(column, row), m_modelIndex(column + 4, row + 7), QVector<int>(Qt::DecorationRole, OnRole));
+}
+
+void BitmapModel::drawChar7x9(char letter, int column, int row, bool on) {
+    QImage letterImage(&font7x9[letter*9], 7, 9, 1, QImage::Format_Mono);
+    letterImage.setColor(0, m_offColor.rgba());
+    letterImage.setColor(1, m_onColor.rgba());
+    m_getPainter(on).drawImage(column, row, letterImage);
+    emit dataChanged(m_modelIndex(column, row), m_modelIndex(column + 6, row + 8), QVector<int>(Qt::DecorationRole, OnRole));
+}
+
+void BitmapModel::m_setDimensions(int columns, int rows, int virtualColumns) {
+    int oldColumns = m_columns;
+    int oldRows = m_bitmap.height();
+    int oldVirtualColumns = m_bitmap.width();
+    if (columns <= 0 || rows <= 0)
+        columns = rows = 0;
+    if (virtualColumns < columns)
+        virtualColumns = columns;
+
+    m_columns = columns;
+    m_bitmap = QImage(virtualColumns, rows, QImage::Format_Alpha8);
+
+    if (m_columns != oldColumns)
+        emit columnsChanged(m_columns);
+    if (m_bitmap.height() != oldRows)
+        emit rowsChanged(m_bitmap.height());
+    if (m_bitmap.width() != oldVirtualColumns)
+        emit virtualColumnsChanged(m_bitmap.width());
+    //emit dataChanged(m_modelIndex(0, 0), m_modelIndex(m_columns, m_bitmap.height()), QVector<int>(Qt::DecorationRole, OnRole));
+}
+
+QPainter& BitmapModel::m_getPainter(bool on) {
+    if (m_painter.device() != &m_bitmap) {
+        if (m_painter.isActive())
+            m_painter.end();
+        m_painter.begin(&m_bitmap);
+        m_painter.setCompositionMode(QPainter::CompositionMode_Source);
     }
-    return false;
+    m_painter.setPen(on? m_onColor : m_offColor);
+    return m_painter;
+}
+
+int BitmapModel::m_bitmapIndex(int column, int row) const {
+    // TODO fix
+    if (m_virtualVisible) {
+        if (column >= 0 && column < virtualColumns() && row >= 0 && row < rows())
+            return row * virtualColumns() + column;
+        else
+            return -1;
+    }
+    else {
+        if (column >= 0 && column < columns() && row >= 0 && row < rows())
+            return row * virtualColumns() + column;
+        else
+            return -1;
+    }
+}
+
+int BitmapModel::m_bitmapIndex(QModelIndex index) const {
+    // TODO
+}
+
+QModelIndex BitmapModel::m_modelIndex(int column, int row) const {
+    return index(m_bitmapIndex(column, row));
+}
+
+int BitmapModel::m_indexColumn(QModelIndex index) const {
+    if (m_virtualVisible)
+        return index.row() % virtualColumns();
+    else
+        return index.row() % columns();
+}
+
+int BitmapModel::m_indexRow(QModelIndex index) const {
+    if (m_virtualVisible)
+        return index.row() / virtualColumns();
+    else
+        return index.row() / columns();
+}
+
+QPoint BitmapModel::m_indexPoint(QModelIndex index) const {
+    return QPoint(m_indexColumn(index), m_indexRow(index));
 }
 
 void BitmapModel::init() {
-    /*setColumn(0);
-    setColumn(2);
-    setColumn(4);
-    setColumn(6);
-    setColumn(8);
-    setColumn(10);
-    setColumn(12);
-    setColumn(14);*/
-    //insertColumn(3);
-    //insertRow(3);
-    //appendRow(2);
-    //appendColumn(2);
-    setChar8x8(1, 0, 'J');
-    setChar8x8(1, 8, 'o');
-    setChar8x8(1, 16, 'l');
-    setChar8x8(1, 24, 'l');
-    setChar8x8(1, 32, 'a');
-    //setChar8x8(1, 25, 'i');
-    //setString8x8(8, 1, "SailfishOS rules!");
-}
-
-int BitmapModel::m_bitmapIndex(int row, int column) const {
-    if (row < 0 || column < 0 || row >= m_rows || column >= m_columns) {
-        return -1;
-    }
-    return row * m_columns + column;
-}
-
-QModelIndex BitmapModel::m_modelIndex(int row, int column) const {
-    return index(m_bitmapIndex(row, column));
+    /*drawColumn(0);
+    drawColumn(2);
+    drawColumn(4);
+    drawColumn(6);
+    drawColumn(8);
+    drawColumn(10);
+    drawColumn(12);
+    drawColumn(14);*/
+    //drawRow(4, false);
+    //drawColumn(4, false);
+    //drawBit(0, 0, false);
+    /*drawRow(0);
+    drawRow(2);
+    drawRow(4);
+    drawRow(6);
+    drawRow(8);*/
+    /*drawChar4x7('H', 0, 2);
+    drawChar4x7('a', 4, 2);
+    drawChar4x7('l', 8, 2);
+    drawChar4x7('l', 12, 2);
+    drawChar4x7('o', 16, 2);
+    drawChar4x7('!', 20, 2);*/
+    drawChar5x8('J', 0, 1);
+    drawChar5x8('o', 5, 1);
+    drawChar5x8('l', 10, 1);
+    drawChar5x8('l', 15, 1);
+    drawChar5x8('a', 20, 1);
+    /*drawChar7x9('H', 0, 0);
+    drawChar7x9('a', 7, 0);
+    drawChar7x9('l', 14, 0);
+    drawChar7x9('l', 21, 0);
+    drawChar7x9('o', 28, 0);
+    drawChar7x9('!', 35, 0);*/
+    //drawText("Hallo");
 }

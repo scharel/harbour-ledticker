@@ -10,7 +10,7 @@ ApplicationWindow
         path: "/apps/harbour-ledticker/settings"
         property string tickerText: value("tickerText", "SailfishOS rules!")
         property int tickerSpeed: value("tickerSpeed", 800)
-        property color ledColor: value("ledColor", Theme.highlightColor)
+        property color ledColor: value("ledColor", "red")
     }
 
     initialPage: Component { TickerPage { } }
